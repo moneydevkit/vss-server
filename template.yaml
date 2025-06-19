@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: VSS Server Serverless Architecture with DynamoDB backend
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name (dev, staging, prod)
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: provided.al2
+    Architectures:
+      - x86_64
+
+Resources:
+  # Task 1.1: Define the DynamoDB Table
+  VssTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "vss-table-${Environment}"
+      AttributeDefinitions:
+        - AttributeName: namespace
+          AttributeType: S
+        - AttributeName: key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: namespace
+          KeyType: HASH  # Partition Key
+        - AttributeName: key
+          KeyType: RANGE # Sort Key
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+        KMSMasterKeyId: alias/aws/dynamodb  # AWS-owned key
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Project
+          Value: vss-server
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Task 1.2: Define the IAM Role for the Lambda Function
+  VssLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "VssLambdaRole-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Actions:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                Resource: !GetAtt VssTable.Arn
+        - PolicyName: LoggingAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Actions:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+
+Outputs:
+  VssTableName:
+    Description: Name of the DynamoDB table
+    Value: !Ref VssTable
+    Export:
+      Name: !Sub "${AWS::StackName}-VssTableName"
+  
+  VssTableArn:
+    Description: ARN of the DynamoDB table
+    Value: !GetAtt VssTable.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-VssTableArn"
+  
+  VssLambdaRoleArn:
+    Description: ARN of the Lambda execution role
+    Value: !GetAtt VssLambdaRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-VssLambdaRoleArn" 
