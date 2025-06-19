@@ -4,6 +4,7 @@ use serde::Deserialize;
 pub(crate) struct Config {
 	pub(crate) server_config: ServerConfig,
 	pub(crate) postgresql_config: Option<PostgreSQLConfig>,
+	pub(crate) dynamodb_config: Option<DynamoDbConfig>,
 }
 
 #[derive(Deserialize)]
@@ -19,6 +20,12 @@ pub(crate) struct PostgreSQLConfig {
 	pub(crate) host: String,
 	pub(crate) port: u16,
 	pub(crate) database: String,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct DynamoDbConfig {
+	pub(crate) table_name: String,
+	pub(crate) region: Option<String>, // Optional, can use AWS_REGION env var
 }
 
 impl PostgreSQLConfig {
@@ -38,6 +45,14 @@ impl PostgreSQLConfig {
 			"postgresql://{}:{}@{}:{}/{}",
 			username, password, self.host, self.port, self.database
 		)
+	}
+}
+
+impl DynamoDbConfig {
+	pub(crate) fn get_table_name(&self) -> String {
+		// Allow override from environment variable for Lambda deployment
+		std::env::var("VSS_DYNAMODB_TABLE_NAME")
+			.unwrap_or_else(|_| self.table_name.clone())
 	}
 }
 

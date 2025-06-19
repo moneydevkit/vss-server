@@ -13,8 +13,8 @@ use rand::{thread_rng, Rng};
 #[macro_export]
 macro_rules! define_kv_store_tests {
 	($test_suite_name:ident, $store_type:path, $create_store_expr: expr) => {
-		use crate::api::error::VssError;
-		use crate::api::kv_store_tests::KvStoreTestSuite;
+		use api::error::VssError;
+		use api::kv_store_tests::KvStoreTestSuite;
 		use async_trait::async_trait;
 		struct $test_suite_name;
 

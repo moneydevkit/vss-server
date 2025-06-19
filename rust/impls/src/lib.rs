@@ -17,5 +17,4 @@ pub mod postgres_store;
 /// Contains [DynamoDB](https://aws.amazon.com/dynamodb/) based backend implementation for VSS.
 pub mod dynamodb_store;
 
-#[macro_use]
-extern crate api;
+

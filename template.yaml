@@ -15,6 +15,9 @@ Globals:
     Runtime: provided.al2
     Architectures:
       - x86_64
+    Environment:
+      Variables:
+        RUST_BACKTRACE: 1
 
 Resources:
   # Task 1.1: Define the DynamoDB Table
@@ -69,6 +72,7 @@ Resources:
                   - dynamodb:PutItem
                   - dynamodb:UpdateItem
                   - dynamodb:DeleteItem
+                  - dynamodb:Query
                 Resource: !GetAtt VssTable.Arn
         - PolicyName: LoggingAccess
           PolicyDocument:
@@ -81,7 +85,87 @@ Resources:
                   - logs:PutLogEvents
                 Resource: "arn:aws:logs:*:*:*"
 
+  # Task 3.1: Define the Lambda Function Resource
+  VssFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "vss-function-${Environment}"
+      CodeUri: rust/target/lambda/server/
+      Handler: bootstrap
+      Runtime: provided.al2
+      Role: !GetAtt VssLambdaRole.Arn
+      Environment:
+        Variables:
+          VSS_DYNAMODB_TABLE_NAME: !Ref VssTable
+          RUST_LOG: info
+      Events:
+        # Task 3.2: Define the API Gateway events
+        GetState:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VssApi
+            Path: /v1/{store_id}/{key}
+            Method: GET
+        UpdateState:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VssApi
+            Path: /v1/{store_id}/{key}
+            Method: POST
+        DeleteState:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VssApi
+            Path: /v1/{store_id}/{key}
+            Method: DELETE
+        ListKeys:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VssApi
+            Path: /v1/{store_id}/list
+            Method: GET
+
+  # Task 3.2: Define the API Gateway
+  VssApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "vss-api-${Environment}"
+      StageName: !Ref Environment
+      EndpointConfiguration:
+        Type: REGIONAL
+      # Enable CORS for web clients
+      Cors:
+        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+        MaxAge: "'600'"
+      # Basic throttling configuration
+      ThrottleConfig:
+        RateLimit: 1000
+        BurstLimit: 2000
+      # Request validation
+      RequestValidatorId: !Ref VssApiRequestValidator
+      Models:
+        VssErrorModel:
+          $schema: http://json-schema.org/draft-04/schema#
+          title: VSS Error Response
+          type: object
+          properties:
+            error_code:
+              type: string
+            message:
+              type: string
+
+  # Request validator for API Gateway
+  VssApiRequestValidator:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId: !Ref VssApi
+      ValidateRequestBody: true
+      ValidateRequestParameters: true
+
 Outputs:
+  # Infrastructure outputs
   VssTableName:
     Description: Name of the DynamoDB table
     Value: !Ref VssTable
@@ -98,4 +182,30 @@ Outputs:
     Description: ARN of the Lambda execution role
     Value: !GetAtt VssLambdaRole.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-VssLambdaRoleArn" 
+      Name: !Sub "${AWS::StackName}-VssLambdaRoleArn"
+
+  # API Gateway outputs
+  VssApiUrl:
+    Description: API Gateway endpoint URL for VSS service
+    Value: !Sub "https://${VssApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/"
+    Export:
+      Name: !Sub "${AWS::StackName}-VssApiUrl"
+  
+  VssApiId:
+    Description: API Gateway ID
+    Value: !Ref VssApi
+    Export:
+      Name: !Sub "${AWS::StackName}-VssApiId"
+
+  # Lambda outputs
+  VssFunctionArn:
+    Description: ARN of the VSS Lambda function
+    Value: !GetAtt VssFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-VssFunctionArn"
+  
+  VssFunctionName:
+    Description: Name of the VSS Lambda function
+    Value: !Ref VssFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-VssFunctionName" 

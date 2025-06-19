@@ -2,6 +2,12 @@
 host = "127.0.0.1"
 port = 8080
 
+# DynamoDB Configuration (primary backend)
+[dynamodb_config]
+table_name = "vss-table-dev"  # Will be overridden by VSS_DYNAMODB_TABLE_NAME env var in Lambda
+region = "us-east-1"          # Optional, can use AWS_REGION env var
+
+# PostgreSQL Configuration (optional/legacy)
 [postgresql_config]
 username = "postgres"  # Optional in TOML, can be overridden by env var `VSS_POSTGRESQL_USERNAME`
 password = "postgres"  # Optional in TOML, can be overridden by env var `VSS_POSTGRESQL_PASSWORD`
