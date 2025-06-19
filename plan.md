@@ -14,6 +14,8 @@ Prerequisites
     AWS CLI installed and configured.
     An Infrastructure as Code (IaC) tool installed, such as AWS SAM CLI, AWS CDK, or Terraform. AWS SAM is recommended for its simplicity in defining serverless applications.
     The necessary toolchain for the application language (e.g., Rustup and Cargo if using Rust).
+    GitHub repository with Actions enabled for automated deployment.
+    Grafana instance configured for monitoring (cloud or self-hosted).
 
 Phase 1: Infrastructure Setup (Infrastructure as Code)
 
@@ -87,8 +89,15 @@ Define the Lambda function and API Gateway within your IaC template.
         Use Lambda Proxy Integration for simplicity and performance.
 
     Task 3.3: Deploy the Stack
-        Build the application binary.
-        Use your IaC tool's deploy command (e.g., sam deploy --guided) to deploy the entire stack to your AWS account.
+        Configure GitHub Actions for automated deployment.
+        Create a deployment workflow that builds the application binary and deploys using your IaC tool.
+        Set up environment-specific deployments (staging/production) with appropriate AWS credentials and environment variables.
+
+    Task 3.4: GitHub Actions Deployment Setup
+        Create `.github/workflows/deploy.yml` with separate jobs for staging and production.
+        Configure AWS credentials using GitHub Secrets (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).
+        Set up environment-specific variables for table names, stack names, and regions.
+        Implement deployment triggers (e.g., staging on push to main, production on release tags).
 
 Phase 4: Testing and Validation
 
@@ -110,10 +119,12 @@ Phase 5: Production Hardening & Final Touches
         (Optional but recommended) Attach AWS WAF to the API Gateway for protection against common web exploits.
 
     Task 5.2: Implement Monitoring and Alarms
-        In CloudWatch, create a dashboard to monitor key metrics:
-            API Gateway: Count, Latency, 4xxError, 5xxError
-            Lambda: Invocations, Errors, Duration, Throttles
-        Create CloudWatch Alarms that trigger on high Lambda Errors or high API Gateway 5xxError rates.
+        Configure Grafana integration to monitor key metrics cost-effectively:
+            Set up CloudWatch data source in Grafana to pull AWS metrics
+            Create dashboards for API Gateway: Count, Latency, 4xxError, 5xxError
+            Create dashboards for Lambda: Invocations, Errors, Duration, Throttles
+        Configure Grafana alerts for high Lambda Errors or high API Gateway 5xxError rates.
+        Note: Use standard CloudWatch metrics where possible to minimize monitoring costs.
 
     Task 5.3: Update Documentation
         Update the project's README.md to describe the new AWS-based architecture.
